@@ -232,6 +232,14 @@ func (idp *IdentityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idp.Logger.Printf("AuthnRequest: %+v", req)
+
+	// Check for nil fields before accessing them
+	if req.Request.Issuer == nil {
+		idp.Logger.Printf("Error: AuthnRequest Issuer is nil")
+		http.Error(w, "Invalid AuthnRequest", http.StatusBadRequest)
+		return
+	}
+
 	idp.Logger.Printf("AuthnRequest Issuer: %s", req.Request.Issuer.Value)
 
 	sp, err := idp.ServiceProviderProvider.GetServiceProvider(r, req.Request.Issuer.Value)
@@ -248,11 +256,11 @@ func (idp *IdentityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO(ross): we must check that the request ID has not been previously
-	//   issued.
+	// TODO(ross): we must check that the request ID has not been previously issued.
 
 	session := idp.SessionProvider.GetSession(w, r, req)
 	if session == nil {
+		idp.Logger.Printf("No session created by SessionProvider")
 		return
 	}
 
@@ -260,16 +268,20 @@ func (idp *IdentityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
 	if assertionMaker == nil {
 		assertionMaker = DefaultAssertionMaker{}
 	}
+
 	if err := assertionMaker.MakeAssertion(req, session); err != nil {
-		idp.Logger.Printf("failed to make assertion: %s", err)
+		idp.Logger.Printf("Failed to make assertion: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
 	if err := req.WriteResponse(w); err != nil {
-		idp.Logger.Printf("failed to write response: %s", err)
+		idp.Logger.Printf("Failed to write response: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
+	idp.Logger.Printf("SSO request processed successfully")
 }
 
 // ServeIDPInitiated handes an IDP-initiated authorization request. Requests of this
@@ -395,6 +407,16 @@ func NewIdpAuthnRequest(idp *IdentityProvider, r *http.Request) (*IdpAuthnReques
 	default:
 		return nil, fmt.Errorf("method not allowed")
 	}
+
+	// Parse the XML content into the AuthnRequest struct
+	var authnRequest AuthnRequest
+	if err := xml.Unmarshal(req.RequestBuffer, &authnRequest); err != nil {
+		return nil, fmt.Errorf("cannot parse AuthnRequest: %s", err)
+	}
+	req.Request = authnRequest
+
+	// Log the parsed AuthnRequest for debugging
+	idp.Logger.Printf("Parsed AuthnRequest: %+v", authnRequest)
 
 	return req, nil
 }
