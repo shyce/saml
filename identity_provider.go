@@ -223,15 +223,27 @@ func (idp *IdentityProvider) ServeMetadata(w http.ResponseWriter, _ *http.Reques
 // If the assertion cannot be created or returned, a StatusInternalServerError
 // response is sent.
 func (idp *IdentityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
+	idp.Logger.Printf("ServeSSO called")
 	req, err := NewIdpAuthnRequest(idp, r)
 	if err != nil {
-		idp.Logger.Printf("failed to parse request: %s", err)
+		idp.Logger.Printf("Error creating IdpAuthnRequest: %v", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
+	idp.Logger.Printf("AuthnRequest: %+v", req)
+	idp.Logger.Printf("AuthnRequest Issuer: %s", req.Request.Issuer.Value)
+
+	sp, err := idp.ServiceProviderProvider.GetServiceProvider(r, req.Request.Issuer.Value)
+	if err != nil {
+		idp.Logger.Printf("Error getting service provider: %v", err)
+		http.Error(w, fmt.Sprintf("Error getting service provider: %v", err), http.StatusBadRequest)
+		return
+	}
+	idp.Logger.Printf("Found service provider: %+v", sp)
+
 	if err := req.Validate(); err != nil {
-		idp.Logger.Printf("failed to validate request: %s", err)
+		idp.Logger.Printf("Error validating request: %v", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}

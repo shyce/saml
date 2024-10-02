@@ -28,10 +28,15 @@ type Service struct {
 func (s *Server) GetServiceProvider(_ *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
 	s.idpConfigMu.RLock()
 	defer s.idpConfigMu.RUnlock()
+	s.logger.Printf("Looking up service provider with ID: %s", serviceProviderID)
+	s.logger.Printf("Current serviceProviders map: %+v", s.serviceProviders)
 	rv, ok := s.serviceProviders[serviceProviderID]
 	if !ok {
+		s.logger.Printf("Service provider not found: %s", serviceProviderID)
 		return nil, os.ErrNotExist
 	}
+	s.logger.Printf("Found service provider: %s", serviceProviderID)
+	s.logger.Printf("Service provider details: %+v", rv)
 	return rv, nil
 }
 
@@ -129,15 +134,19 @@ func (s *Server) initializeServices() error {
 	if err != nil {
 		return err
 	}
+	s.logger.Printf("Initializing %d services", len(serviceNames))
 	for _, serviceName := range serviceNames {
 		service := Service{}
 		if err := s.Store.Get(fmt.Sprintf("/services/%s", serviceName), &service); err != nil {
+			s.logger.Printf("Error loading service %s: %v", serviceName, err)
 			return err
 		}
 
+		s.logger.Printf("Loaded service: %s (EntityID: %s)", serviceName, service.Metadata.EntityID)
 		s.idpConfigMu.Lock()
 		s.serviceProviders[service.Metadata.EntityID] = &service.Metadata
 		s.idpConfigMu.Unlock()
 	}
+	s.logger.Printf("Initialized services. Current serviceProviders map: %+v", s.serviceProviders)
 	return nil
 }
