@@ -21,6 +21,24 @@ type Service struct {
 	Metadata saml.EntityDescriptor
 }
 
+func (s *Server) AddService(service *Service) error {
+	if service == nil || service.Metadata.EntityID == "" {
+		return fmt.Errorf("invalid service")
+	}
+
+	err := s.Store.Put(fmt.Sprintf("/services/%s", service.Name), service)
+	if err != nil {
+		return fmt.Errorf("failed to store service: %v", err)
+	}
+
+	s.idpConfigMu.Lock()
+	s.serviceProviders[service.Metadata.EntityID] = &service.Metadata
+	s.idpConfigMu.Unlock()
+
+	s.logger.Printf("Added service: %s (EntityID: %s)", service.Name, service.Metadata.EntityID)
+	return nil
+}
+
 // GetServiceProvider returns the Service Provider metadata for the
 // service provider ID, which is typically the service provider's
 // metadata URL. If an appropriate service provider cannot be found then
