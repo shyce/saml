@@ -71,7 +71,7 @@ func New(opts Options) (*Server, error) {
 		},
 		logger:        logr,
 		Store:         opts.Store,
-		LoginTemplate: opts.LoginTemplate,
+		LoginTemplate: &opts.LoginTemplate,
 	}
 
 	s.IDP.SessionProvider = s
