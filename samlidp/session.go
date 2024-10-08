@@ -109,11 +109,13 @@ func (s *Server) sendLoginForm(w http.ResponseWriter, r *http.Request, req *saml
 		URL         string
 		SAMLRequest string
 		RelayState  string
+		Error       string
 	}{
 		Toast:       toast,
 		URL:         req.IDP.SSOURL.String(),
 		SAMLRequest: base64.StdEncoding.EncodeToString(req.RequestBuffer),
 		RelayState:  req.RelayState,
+		Error:       toast,
 	}
 
 	if s.LoginTemplate != nil {
