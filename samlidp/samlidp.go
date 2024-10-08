@@ -5,6 +5,7 @@ package samlidp
 import (
 	"crypto"
 	"crypto/x509"
+	"html/template"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,12 +19,13 @@ import (
 
 // Options represent the parameters to New() for creating a new IDP server
 type Options struct {
-	URL         url.URL
-	Key         crypto.PrivateKey
-	Signer      crypto.Signer
-	Logger      logger.Interface
-	Certificate *x509.Certificate
-	Store       Store
+	URL           url.URL
+	Key           crypto.PrivateKey
+	Signer        crypto.Signer
+	Logger        logger.Interface
+	Certificate   *x509.Certificate
+	Store         Store
+	LoginTemplate template.Template
 }
 
 // Server represents an IDP server. The server provides the following URLs:
@@ -43,6 +45,7 @@ type Server struct {
 	serviceProviders map[string]*saml.EntityDescriptor
 	IDP              saml.IdentityProvider // the underlying IDP
 	Store            Store                 // the data store
+	LoginTemplate    template.Template
 }
 
 // New returns a new Server
@@ -66,8 +69,9 @@ func New(opts Options) (*Server, error) {
 			MetadataURL: metadataURL,
 			SSOURL:      ssoURL,
 		},
-		logger: logr,
-		Store:  opts.Store,
+		logger:        logr,
+		Store:         opts.Store,
+		LoginTemplate: opts.LoginTemplate,
 	}
 
 	s.IDP.SessionProvider = s

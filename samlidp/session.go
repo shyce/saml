@@ -103,18 +103,7 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, req *saml.Id
 // sendLoginForm produces a form which requests a username and password and directs the user
 // back to the IDP authorize URL to restart the SAML login flow, this time establishing a
 // session based on the credentials that were provided.
-func (s *Server) sendLoginForm(w http.ResponseWriter, _ *http.Request, req *saml.IdpAuthnRequest, toast string) {
-	tmpl := template.Must(template.New("saml-post-form").Parse(`` +
-		`<html>` +
-		`<p>{{.Toast}}</p>` +
-		`<form method="post" action="{{.URL}}">` +
-		`<input type="text" name="user" placeholder="user" value="" />` +
-		`<input type="password" name="password" placeholder="password" value="" />` +
-		`<input type="hidden" name="SAMLRequest" value="{{.SAMLRequest}}" />` +
-		`<input type="hidden" name="RelayState" value="{{.RelayState}}" />` +
-		`<input type="submit" value="Log In" />` +
-		`</form>` +
-		`</html>`))
+func (s *Server) sendLoginForm(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest, toast string) {
 	data := struct {
 		Toast       string
 		URL         string
@@ -127,8 +116,29 @@ func (s *Server) sendLoginForm(w http.ResponseWriter, _ *http.Request, req *saml
 		RelayState:  req.RelayState,
 	}
 
-	if err := tmpl.Execute(w, data); err != nil {
-		panic(err)
+	if s.LoginTemplate != nil {
+		if err := s.LoginTemplate.Execute(w, data); err != nil {
+			http.Error(w, fmt.Sprintf("Error executing template: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Use the default template if no custom template is provided
+		defaultTemplate := template.Must(template.New("saml-post-form").Parse(`` +
+			`<html>` +
+			`<p>{{.Toast}}</p>` +
+			`<form method="post" action="{{.URL}}">` +
+			`<input type="text" name="user" placeholder="user" value="" />` +
+			`<input type="password" name="password" placeholder="password" value="" />` +
+			`<input type="hidden" name="SAMLRequest" value="{{.SAMLRequest}}" />` +
+			`<input type="hidden" name="RelayState" value="{{.RelayState}}" />` +
+			`<input type="submit" value="Log In" />` +
+			`</form>` +
+			`</html>`))
+
+		if err := defaultTemplate.Execute(w, data); err != nil {
+			http.Error(w, fmt.Sprintf("Error executing default template: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
