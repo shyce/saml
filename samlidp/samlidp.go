@@ -45,7 +45,7 @@ type Server struct {
 	serviceProviders map[string]*saml.EntityDescriptor
 	IDP              saml.IdentityProvider // the underlying IDP
 	Store            Store                 // the data store
-	LoginTemplate    template.Template
+	LoginTemplate    *template.Template
 }
 
 // New returns a new Server
